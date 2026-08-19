@@ -1,0 +1,8 @@
+streamlit
+foundry-local-sdk
+openai
+numpy
+sentence-transformers
+torchvision
+chromadb
+langchain

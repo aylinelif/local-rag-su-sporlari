@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Sanal Ortam (Varsa)
+venv/
+env/
+.env
+
+# Vektör Veritabanı
+chroma_db/
+
+# İşletim Sistemi
+.DS_Store
