@@ -4,18 +4,40 @@ from foundry_local import FoundryLocalManager
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
 
+# --- SAYFA AYARLARI ---
 st.set_page_config(page_title="Türkiye Su Sporları Rehberi", page_icon="🏄‍♀️", layout="wide")
 
+# --- YAN MENÜ (SIDEBAR) ---
 with st.sidebar:
     st.title("⚙️ Sistem Bilgisi")
-    st.markdown("Bu RAG asistanı **Microsoft Foundry Local** üzerinde çalışmaktadır.")
+    st.markdown("Bu RAG asistanı **Microsoft Foundry Local** üzerinde tamamen çevrimdışı çalışmaktadır.")
+    
     st.divider()
     st.markdown("🧠 **LLM:** Phi-3.5 Mini")
     st.markdown("📐 **Embedding:** paraphrase-multilingual")
     st.markdown("⚡ **Veritabanı:** ChromaDB")
+    
+    st.divider()
+    st.success("🟢 Sistem Çevrimiçi (Yerel)")
+    
+    st.divider()
+    st.markdown("### 👩‍💻 Geliştirici")
+    st.markdown("**Aylin Elif Gökdemir**")
+    st.markdown("[LinkedIn Profilim](https://www.linkedin.com/in/aylinelifgokdemir/) | [GitHub Profilim](https://github.com/aylinelif)")
 
-st.markdown('<h1 style="color: #1F618D; font-weight: 700;">🏄‍♀️ Türkiye Su Sporları Rehberi</h1>', unsafe_allow_html=True)
+# --- ANA EKRAN BÖLÜMÜ ---
+st.markdown('<h1 style="color: #1F618D; font-weight: 700; text-align: center;">🏄‍♀️ Türkiye Su Sporları Rehberi</h1>', unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #5D6D7E;'>Yerel yapay zeka ile Türkiye'nin en iyi sörf, dalış ve rafting rotalarını keşfedin.</p>", unsafe_allow_html=True)
 
+# Mimariyi Sergileme Alanı (Expander)
+with st.expander("🛠️ Bu Sistem Nasıl Çalışır? (Mimari Özeti)"):
+    st.markdown("""
+    * **Güvenlik ve Gizlilik:** Verileriniz buluta gitmez, %100 yerel donanımda (Microsoft Foundry Local) çalışır.
+    * **Vektör Arama:** Sorularınız anlık olarak *ChromaDB* üzerinde taranır ve en alakalı bilgiler getirilir.
+    * **Halüsinasyonsuz Üretim:** *Phi-3.5 Mini* modeli, sadece bu doğrulanmış kaynakları kullanarak size doğal bir dille cevap verir.
+    """)
+
+# --- SİSTEMİ HAZIRLAMA ---
 @st.cache_resource
 def sistemi_hazirla():
     manager = FoundryLocalManager()
@@ -27,10 +49,8 @@ def sistemi_hazirla():
     gercek_model_id = manager.get_model_info(alias).id
     
     local_client = OpenAI(base_url=manager.endpoint, api_key=manager.api_key)
-    # Yeni, daha zeki dil modelimiz
     embed_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
     
-    # ChromaDB Bağlantısı
     chroma_client = chromadb.PersistentClient(path="./chroma_db")
     collection = chroma_client.get_collection(name="su_sporlari")
     
@@ -38,27 +58,47 @@ def sistemi_hazirla():
 
 client, embedder, CHAT_MODEL_ID, collection = sistemi_hazirla()
 
-# 1. DÜZELTME: İlk açılışta profesyonel bir karşılama mesajı
+# --- KULLANICI ETKİLEŞİMİ VE SOHBET ---
 if "mesajlar" not in st.session_state:
     st.session_state.mesajlar = [
-        {"rol": "assistant", "icerik": "Merhaba! 🏄‍♀️ Türkiye'nin dört bir yanındaki su sporları rotaları (Sörf, Dalış, Rafting vb.) hakkında bana her şeyi sorabilirsiniz. Nereden başlayalım?"}
+        {"rol": "assistant", "icerik": "Merhaba! 🏄‍♀️ Türkiye'nin dört bir yanındaki su sporları rotaları hakkında bana her şeyi sorabilirsiniz. İster hızlı butonları kullanın, isterseniz de sorunuzu aşağıya yazın!"}
     ]
 
 for mesaj in st.session_state.mesajlar:
     with st.chat_message(mesaj["rol"]):
         st.markdown(mesaj["icerik"])
 
-soru = st.chat_input("Örn: Rüzgar sörfüne yeni başlayanlar için nereyi önerirsin?")
+# Örnek Soru Butonları (UX Geliştirmesi)
+st.markdown("💡 **Hızlı Sorular:**")
+kolon1, kolon2, kolon3 = st.columns(3)
 
-if soru:
-    st.session_state.mesajlar.append({"rol": "user", "icerik": soru})
+if "ornek_soru" not in st.session_state:
+    st.session_state.ornek_soru = ""
+
+if kolon1.button("Rüzgar sörfü için en iyi yerler neresi?"):
+    st.session_state.ornek_soru = "Rüzgar sörfü için en iyi yerler neresi?"
+if kolon2.button("Fethiye çevresinde dalış noktaları?"):
+    st.session_state.ornek_soru = "Fethiye çevresinde dalış noktaları?"
+if kolon3.button("Kitesurf'e yeni başlayacağım, tavsiye ver."):
+    st.session_state.ornek_soru = "Kitesurf'e yeni başlayacağım, tavsiye ver."
+
+# Kullanıcıdan gelen asıl input
+soru = st.chat_input("Başka bir şey sor... (Örn: Köprülü Kanyonda ne yapılır?)")
+
+# Hızlı butonlardan veya chat inputtan gelen veriyi birleştirme
+aktif_soru = soru if soru else st.session_state.ornek_soru
+
+if aktif_soru:
+    # Hızlı butona tıklandıktan sonra döngüyü sıfırlıyoruz
+    st.session_state.ornek_soru = ""
+    
+    st.session_state.mesajlar.append({"rol": "user", "icerik": aktif_soru})
     with st.chat_message("user"):
-        st.markdown(soru)
+        st.markdown(aktif_soru)
 
     with st.chat_message("assistant"):
         with st.spinner("Rehber taranıyor..."):
-            # ChromaDB ile Çok Hızlı Benzerlik Araması
-            soru_vektoru = embedder.encode(soru).tolist()
+            soru_vektoru = embedder.encode(aktif_soru).tolist()
             sonuclar = collection.query(query_embeddings=[soru_vektoru], n_results=2)
             en_iyi_2_bilgi = "\n\n".join(sonuclar['documents'][0])
 
@@ -68,16 +108,14 @@ if soru:
 Rehber Bilgisi:
 {en_iyi_2_bilgi}
 
-Soru: {soru}"""
+Soru: {aktif_soru}"""
 
-        # 2. DÜZELTME: Daha zengin bir görsel format (kalın yazı ve maddeler) için Prompt güncellendi
         gonderilecek_mesajlar = [
             {"role": "system", "content": "Sen uzman bir su sporları asistanısın. Yanıtlarını verirken önemli yerleri **kalın** yaz ve okunabilirliği artırmak için madde işaretleri kullan."},
             {"role": "user", "content": kombine_soru}
         ]
 
         try:
-            # 3. DÜZELTME: Cümlelerin yarım kalmaması için max_tokens limiti eklendi
             response = client.chat.completions.create(
                 model=CHAT_MODEL_ID,
                 messages=gonderilecek_mesajlar,
@@ -88,7 +126,7 @@ Soru: {soru}"""
             cevap = st.write_stream(response)
             st.session_state.mesajlar.append({"rol": "assistant", "icerik": cevap})
             
-            with st.expander("📚 Kaynaklar"):
+            with st.expander("📚 Kaynaklar (Sistem bu bilgiyi nereden buldu?)"):
                 st.info(en_iyi_2_bilgi)
                 
         except Exception as e:
